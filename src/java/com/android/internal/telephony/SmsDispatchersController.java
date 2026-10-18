@@ -451,6 +451,12 @@ public class SmsDispatchersController extends Handler {
         }
     }
 
+    /** Returns the feature flags used to create this controller's dispatchers. */
+    @NonNull
+    public FeatureFlags getFeatureFlags() {
+        return mFeatureFlags;
+    }
+
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(final Context context, Intent intent) {

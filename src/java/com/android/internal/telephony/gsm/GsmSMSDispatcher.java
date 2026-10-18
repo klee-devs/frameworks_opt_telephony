@@ -19,10 +19,15 @@ package com.android.internal.telephony.gsm;
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
 import android.annotation.NonNull;
+import android.app.PendingIntent;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Message;
+import android.os.Process;
+import android.os.UserHandle;
 import android.telephony.ServiceState;
 
 import com.android.internal.R;
@@ -43,10 +48,13 @@ import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.util.SMSDispatcherUtil;
 import com.android.telephony.Rlog;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public final class GsmSMSDispatcher extends SMSDispatcher {
+public class GsmSMSDispatcher extends SMSDispatcher {
     private static final String TAG = "GsmSMSDispatcher";
     protected UiccController mUiccController = null;
     private AtomicReference<IccRecords> mIccRecords = new AtomicReference<IccRecords>();
@@ -63,6 +71,15 @@ public final class GsmSMSDispatcher extends SMSDispatcher {
         mUiccController = UiccController.getInstance();
         mUiccController.registerForIccChanged(this, EVENT_ICC_CHANGED, null);
         Rlog.d(TAG, "GsmSMSDispatcher created");
+    }
+
+    /**
+     * Retain the constructor used by MediaTek telephony framework jars built against older APIs.
+     */
+    public GsmSMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
+            GsmInboundSmsHandler gsmInboundSmsHandler) {
+        this(phone, smsDispatchersController, gsmInboundSmsHandler,
+                smsDispatchersController.getFeatureFlags());
     }
 
     @Override
@@ -140,6 +157,59 @@ public final class GsmSMSDispatcher extends SMSDispatcher {
     @Override
     protected TextEncodingDetails calculateLength(CharSequence messageBody, boolean use7bitOnly) {
         return SMSDispatcherUtil.calculateLengthGsm(messageBody, use7bitOnly);
+    }
+
+    // Compatibility hooks used by prebuilt MediaTek telephony framework jars.
+    protected SmsMessageBase.SubmitPduBase onSendData(String scAddr, String destAddr,
+            int destPort, byte[] data, boolean statusReportRequested, int messageRef) {
+        return getSubmitPdu(scAddr, destAddr, destPort, data, statusReportRequested, messageRef);
+    }
+
+    protected SmsMessageBase.SubmitPduBase onSendText(String scAddr, String destAddr,
+            String text, boolean statusReportRequested, Uri messageUri, String callingPkg,
+            boolean persistMessage, int priority, boolean expectMore, int validityPeriod,
+            int messageRef) {
+        return getSubmitPdu(scAddr, destAddr, text, statusReportRequested, null, priority,
+                validityPeriod, messageRef);
+    }
+
+    protected int onSendMultipartText(String destAddr, String scAddr, ArrayList<String> parts,
+            ArrayList<PendingIntent> sentIntents, ArrayList<PendingIntent> deliveryIntents,
+            Uri messageUri, String callingPkg, boolean persistMessage, int priority,
+            boolean expectMore, int validityPeriod, TextEncodingDetails[] encodingForParts) {
+        int encoding = SmsConstants.ENCODING_UNKNOWN;
+        for (int i = 0; i < parts.size(); i++) {
+            TextEncodingDetails details = calculateLength(parts.get(i), false);
+            if (encoding != details.codeUnitSize
+                    && (encoding == SmsConstants.ENCODING_UNKNOWN
+                            || encoding == SmsConstants.ENCODING_7BIT)) {
+                encoding = details.codeUnitSize;
+            }
+            encodingForParts[i] = details;
+        }
+        return encoding;
+    }
+
+    protected SmsTracker getSmsTracker(String callingPackage, int callingUser,
+            HashMap<String, Object> data, PendingIntent sentIntent,
+            PendingIntent deliveryIntent, String format, AtomicInteger unsentPartCount,
+            AtomicBoolean anyPartFailed, Uri messageUri, SmsHeader smsHeader,
+            boolean expectMore, String fullMessageText, boolean isText, boolean persistMessage,
+            int priority, int validityPeriod, boolean isForVvm, long messageId, int messageRef,
+            boolean skipShortCodeCheck, long uniqueMessageId) {
+        int uid = Process.INVALID_UID;
+        if (callingPackage != null) {
+            try {
+                uid = mContext.createContextAsUser(UserHandle.of(callingUser), 0)
+                        .getPackageManager().getPackageUidAsUser(callingPackage, callingUser);
+            } catch (PackageManager.NameNotFoundException ignored) {
+                // Preserve INVALID_UID if the legacy caller package is unavailable.
+            }
+        }
+        return super.getSmsTracker(callingPackage, callingUser, data, sentIntent, deliveryIntent,
+                format, unsentPartCount, anyPartFailed, messageUri, smsHeader, expectMore,
+                fullMessageText, isText, persistMessage, priority, validityPeriod, isForVvm,
+                messageId, messageRef, skipShortCodeCheck, uniqueMessageId, uid);
     }
 
     @Override
