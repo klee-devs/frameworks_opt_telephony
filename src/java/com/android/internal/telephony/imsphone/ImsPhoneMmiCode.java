@@ -1383,7 +1383,7 @@ public class ImsPhoneMmiCode extends Handler implements MmiCode {
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private CharSequence getErrorMessage(AsyncResult ar) {
+    protected CharSequence getErrorMessage(AsyncResult ar) {
         CharSequence errorMessage;
         return ((errorMessage = getMmiErrorMessage(ar)) != null) ? errorMessage :
                 mContext.getText(com.android.internal.R.string.mmiError);
@@ -1617,7 +1617,7 @@ public class ImsPhoneMmiCode extends Handler implements MmiCode {
     }
 
 
-    private void
+    protected void
     onQueryCfComplete(AsyncResult ar) {
         StringBuilder sb = new StringBuilder(getScString());
         sb.append("\n");
@@ -1681,7 +1681,7 @@ public class ImsPhoneMmiCode extends Handler implements MmiCode {
 
     }
 
-    private void onSuppSvcQueryComplete(AsyncResult ar) {
+    protected void onSuppSvcQueryComplete(AsyncResult ar) {
         StringBuilder sb = new StringBuilder(getScString());
         sb.append("\n");
 

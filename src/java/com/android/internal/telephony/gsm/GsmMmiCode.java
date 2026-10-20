@@ -1484,7 +1484,7 @@ public class GsmMmiCode extends Handler implements MmiCode {
     }
 
     @UnsupportedAppUsage
-    private CharSequence getScString() {
+    protected CharSequence getScString() {
         if (mSc != null) {
             if (isServiceCodeCallBarring(mSc)) {
                 return mContext.getText(com.android.internal.R.string.BaMmi);
@@ -1506,7 +1506,7 @@ public class GsmMmiCode extends Handler implements MmiCode {
         return "";
     }
 
-    private void
+    protected void
     onSetComplete(Message msg, AsyncResult ar){
         StringBuilder sb = new StringBuilder(getScString());
         sb.append("\n");
@@ -1792,7 +1792,7 @@ public class GsmMmiCode extends Handler implements MmiCode {
         return str == null ? str : fmt.unicodeWrap(str, TextDirectionHeuristics.LTR, true);
     }
 
-    private void
+    protected void
     onQueryCfComplete(AsyncResult ar) {
         StringBuilder sb = new StringBuilder(getScString());
         sb.append("\n");
@@ -1845,7 +1845,7 @@ public class GsmMmiCode extends Handler implements MmiCode {
 
     }
 
-    private void
+    protected void
     onQueryComplete(AsyncResult ar) {
         StringBuilder sb = new StringBuilder(getScString());
         sb.append("\n");
